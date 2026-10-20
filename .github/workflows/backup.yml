@@ -1,0 +1,54 @@
+# Nightly encrypted backup of the Supabase database (free plan has no downloadable backups).
+# Needs two repository secrets: SUPABASE_DB_URL and BACKUP_PASSPHRASE (see README > Backups).
+# Each backup is kept as a workflow artifact for 30 days. Run it any time from Actions > Nightly backup > Run workflow.
+name: Nightly backup
+
+on:
+  schedule:
+    - cron: '30 21 * * *' # 21:30 UTC = 03:00 IST; GitHub may start it some minutes late
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+    steps:
+      - name: Check secrets
+        run: |
+          [ -n "$SUPABASE_DB_URL" ] || { echo "::error::Add the SUPABASE_DB_URL repository secret"; exit 1; }
+          [ -n "$BACKUP_PASSPHRASE" ] || { echo "::error::Add the BACKUP_PASSPHRASE repository secret"; exit 1; }
+
+      - uses: actions/checkout@v4
+
+      # pg_dump must match the database's major version (or be newer): ask the database, install that client.
+      - name: Install matching Postgres client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-common postgresql-client
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          major=$(psql "$SUPABASE_DB_URL" -XAt -c "select current_setting('server_version_num')::int / 10000") \
+            || { echo "::error::Could not connect. Check SUPABASE_DB_URL is the Session pooler string with the right password"; exit 1; }
+          sudo apt-get install -y -qq "postgresql-client-$major"
+          echo "PG_BIN=/usr/lib/postgresql/$major/bin" >> "$GITHUB_ENV"
+          "/usr/lib/postgresql/$major/bin/pg_dump" --version
+
+      - name: Back up
+        run: bash scripts/backup.sh backup
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: backup-${{ github.run_number }}
+          path: backup/*.gpg
+          retention-days: 30
+          if-no-files-found: error
+          compression-level: 0
