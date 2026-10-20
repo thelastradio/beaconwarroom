@@ -159,7 +159,7 @@ followed by the new `0003_seed.sql`. Only events created afterwards use the new 
 
 - `python3 tests/rls_test.py` — 55 access-rule checks against a local Postgres with the migrations applied.
 - `bash tests/ops_test.sh` — 24 checks: keep-alive access and check-in, backup encryption, restore into a fresh database (identical data, wrong passphrase refused, never over live data).
-- `python3 tests/e2e.py` — 38 end-to-end checks in a real browser: email-code sign-in, event creation, compliance research (mocked research service), invites, POC phone updates with photos, offline queue, incidents, broadcasts, viewer read-only, access removal, research reuse.
+- `python3 tests/e2e.py` — 37 end-to-end checks in a real browser: email-code sign-in, event creation, compliance research (mocked research service), invites, POC phone updates with photos, offline queue, incidents, broadcasts, viewer read-only, access removal, research reuse.
 
 Local stack: Postgres 16, Supabase Auth and PostgREST binaries, `scripts/localstack/gateway.mjs` (stands in for Supabase's gateway, storage and the Vercel functions).
 
